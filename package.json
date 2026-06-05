@@ -1,5 +1,5 @@
 {
-  "name": "consent-engine-application",
+  "name": "embedded-page-application",
   "private": true,
   "version": "0.0.0",
   "type": "module",
