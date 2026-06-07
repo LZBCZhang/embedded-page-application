@@ -47,15 +47,17 @@ export function PreferencesPageHost({ accessToken, userId, userEmail, userPhone,
   const [embedStatus, setEmbedStatus] = useState<EmbedStatus>('idle');
   const [embedError, setEmbedError] = useState<EmbedErrorPayload | null>(null);
 
-  // Send auth token and user context once the iframe has fully loaded.
-  const handleIframeLoad = () => {
+  const sendToken = () => {
     iframeRef.current?.contentWindow?.postMessage(
       { type: 'AUTH_TOKEN', token: accessToken, userId, userEmail, userPhone, companyId },
       IFRAME_ORIGIN,
     );
   };
 
-  // Listen for status events emitted by the embedded page.
+  // Listen for status events from the embedded page.
+  // CONSENT_ENGINE_LOADING_START is the iframe's signal that its listener is
+  // mounted — respond immediately with the token to avoid the race condition
+  // where onLoad fires before the React app inside the iframe has initialised.
   useEffect(() => {
     const handleMessage = (event: MessageEvent<EmbedMessage>) => {
       if (event.origin !== IFRAME_ORIGIN) return;
@@ -63,6 +65,7 @@ export function PreferencesPageHost({ accessToken, userId, userEmail, userPhone,
       switch (event.data?.type) {
         case 'CONSENT_ENGINE_LOADING_START':
           setEmbedStatus('loading');
+          sendToken();
           break;
         case 'CONSENT_ENGINE_LOADING_END':
           setEmbedStatus('ready');
@@ -79,7 +82,7 @@ export function PreferencesPageHost({ accessToken, userId, userEmail, userPhone,
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, []);
+  }, [accessToken, userId, userEmail, userPhone, companyId]);
 
   return (
     <div className={styles.host}>
@@ -103,7 +106,6 @@ export function PreferencesPageHost({ accessToken, userId, userEmail, userPhone,
           src={PREFERENCES_URL}
           title="Communication Preferences"
           className={styles.iframe}
-          onLoad={handleIframeLoad}
         />
       </div>
     </div>

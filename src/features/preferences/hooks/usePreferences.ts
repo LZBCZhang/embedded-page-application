@@ -38,18 +38,26 @@ export const usePreferences = () => {
   const [dirtyPurposeIds, setDirtyPurposeIds] = useState<Set<string>>(new Set());
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  const fetchQuery = useFetchPreferences(
-    { userId: userId ?? '', collectionPointId: COLLECTION_POINT_ID },
-    status === 'ready' && !!userId,
-  );
+  const {
+    mutate: fetchPreferences,
+    data: fetchData,
+    isPending: fetchPending,
+    isError: loadError,
+    isSuccess: fetchSuccess,
+  } = useFetchPreferences();
   const updateMutation = useUpdatePreference();
 
-  const purposes = fetchQuery.data?.data ?? [];
+  const purposes = fetchData?.data ?? [];
   const allCommPrefTypes = useMemo<CommunicationType[]>(() => buildCommunicationTypes(purposes), [purposes]);
-  const loading = fetchQuery.isPending && status === 'ready';
-  const loadError = fetchQuery.isError;
+  const loading = fetchPending;
   const saving = updateMutation.isPending;
   const saveError = updateMutation.isError;
+
+  useEffect(() => {
+    if (status === 'ready' && userId) {
+      fetchPreferences({ userId, collectionPointId: COLLECTION_POINT_ID });
+    }
+  }, [status, userId, fetchPreferences]);
 
   useEffect(() => {
     const nextState = cloneToggleState(purposes);
@@ -59,8 +67,8 @@ export const usePreferences = () => {
   }, [purposes]);
 
   useEffect(() => {
-    if (fetchQuery.isSuccess) emitLoadingEnd();
-  }, [fetchQuery.isSuccess, emitLoadingEnd]);
+    if (fetchSuccess) emitLoadingEnd();
+  }, [fetchSuccess, emitLoadingEnd]);
 
   useEffect(() => {
     if (loadError) emitError('api_failure');

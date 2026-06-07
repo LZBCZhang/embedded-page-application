@@ -1,11 +1,9 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { fetchUserPreferences } from '../api/preferences.api';
-import type { FetchUserPreferencesRequest } from '../types/preferences.types';
+import type { FetchUserPreferencesRequest, UserPreferencesResponse } from '../types/preferences.types';
 
-export const useFetchPreferences = (request: FetchUserPreferencesRequest, enabled: boolean) => {
-  return useQuery({
-    queryKey: ['preferences', request.userId, request.collectionPointId],
-    queryFn: () => fetchUserPreferences(request),
-    enabled,
+export const useFetchPreferences = () => {
+  return useMutation<UserPreferencesResponse, unknown, FetchUserPreferencesRequest>({
+    mutationFn: fetchUserPreferences,
   });
 };

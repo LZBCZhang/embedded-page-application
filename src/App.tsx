@@ -6,6 +6,7 @@ import queryClient from './lib/queryClient';
 import { UnsubscribePage } from './features/unsubscribe/UnsubscribePage';
 import { PreferencesPage } from './features/preferences/PreferencesPage';
 import { EmbedErrorPage } from './features/preferences/components/EmbedErrorPage';
+import { DevHostPage } from './sample/DevHostPage';
 
 export function App() {
   return (
@@ -14,6 +15,7 @@ export function App() {
         <Routes>
           <Route path="/unsubscribe" element={<UnsubscribePage />} />
           <Route path="/preferences" element={<PreferencesPage />} />
+          {import.meta.env.DEV && <Route path="/host" element={<DevHostPage />} />}
           <Route path="*" element={<EmbedErrorPage />} />
         </Routes>
       </BrowserRouter>
