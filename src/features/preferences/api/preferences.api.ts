@@ -12,7 +12,5 @@ export async function fetchPreferences(): Promise<PreferencesResponse> {
 export async function updatePreference(
   payload: UpdatePreferencePayload
 ): Promise<void> {
-  await apiClient.patch(`/api/preferences/${payload.id}`, {
-    enabled: payload.enabled,
-  });
+  await apiClient.post(`/api/preferences/${payload.id}`, payload);
 }
