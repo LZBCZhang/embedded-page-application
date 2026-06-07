@@ -1,28 +1,36 @@
-import type { ConsentPreference } from '../types/preferences.types';
+import type { Purpose } from '../types/preferences.types';
 import { PreferenceToggle } from './PreferenceToggle';
 import styles from './PreferenceItem.module.scss';
 
 interface PreferenceItemProps {
-  preference: ConsentPreference;
-  onToggle: (id: string, enabled: boolean) => void;
+  purpose: Purpose;
+  isPreferenceConsented: (purposeId: string, prefId: string) => boolean;
+  isAllUnsubscribed: (type: string) => boolean;
+  onToggle: (purposeId: string, prefId: string) => void;
 }
 
-export function PreferenceItem({ preference, onToggle }: PreferenceItemProps) {
+export function PreferenceItem({ purpose, isPreferenceConsented, isAllUnsubscribed, onToggle }: PreferenceItemProps) {
   return (
-    <article className={styles.item} aria-labelledby={`pref-${preference.id}`}>
-      <div className={styles.content}>
-        <h3 id={`pref-${preference.id}`} className={styles.label}>
-          {preference.label}
-        </h3>
-        <p className={styles.description}>{preference.description}</p>
+    <article className={styles.item} aria-labelledby={`purpose-${purpose.id}`}>
+      <div className={styles.header}>
+        <h3 id={`purpose-${purpose.id}`} className={styles.label}>{purpose.label}</h3>
+        {purpose.description && <p className={styles.description}>{purpose.description}</p>}
       </div>
-      <PreferenceToggle
-        id={preference.id}
-        label={preference.label}
-        enabled={preference.enabled}
-        required={preference.required}
-        onChange={(enabled) => onToggle(preference.id, enabled)}
-      />
+      {purpose.communicationPreferences.length > 0 && (
+        <ul className={styles.prefList} role="list">
+          {purpose.communicationPreferences.map((pref) => (
+            <li key={pref.id} className={styles.prefRow} role="listitem">
+              <PreferenceToggle
+                id={`${purpose.id}-${pref.id}`}
+                label={pref.name}
+                enabled={isPreferenceConsented(purpose.id, pref.id)}
+                disabled={isAllUnsubscribed(pref.type)}
+                onChange={() => onToggle(purpose.id, pref.id)}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
     </article>
   );
 }

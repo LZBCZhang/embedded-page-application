@@ -2,7 +2,8 @@
  * PreferencesPageHost — sample host page that embeds PreferencesPage inside an iframe.
  *
  * Communication protocol:
- *   Parent → iframe : { type: 'AUTH_TOKEN', token: string }
+ *   Parent → iframe : { type: 'AUTH_TOKEN', token: string, userId: string,
+ *                       userEmail?: string, userPhone?: string, companyId?: string }
  *   iframe → Parent : { type: 'CONSENT_ENGINE_LOADING_START' }
  *                     { type: 'CONSENT_ENGINE_LOADING_END' }
  *                     { type: 'CONSENT_ENGINE_ERROR', payload: { code, message, status? } }
@@ -29,19 +30,27 @@ interface EmbedMessage {
 }
 
 interface PreferencesPageHostProps {
-  /** A valid bearer token for the currently authenticated user. */
+  /** Bearer token for the authenticated user (required). */
   accessToken: string;
+  /** User identifier (required). */
+  userId: string;
+  /** User email address (optional — stored in additionalInfo). */
+  userEmail?: string;
+  /** User phone number (optional — stored in additionalInfo). */
+  userPhone?: string;
+  /** Company identifier (optional — stored in additionalInfo). */
+  companyId?: string;
 }
 
-export function PreferencesPageHost({ accessToken }: PreferencesPageHostProps) {
+export function PreferencesPageHost({ accessToken, userId, userEmail, userPhone, companyId }: PreferencesPageHostProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [embedStatus, setEmbedStatus] = useState<EmbedStatus>('idle');
   const [embedError, setEmbedError] = useState<EmbedErrorPayload | null>(null);
 
-  // Send the auth token once the iframe has fully loaded.
+  // Send auth token and user context once the iframe has fully loaded.
   const handleIframeLoad = () => {
     iframeRef.current?.contentWindow?.postMessage(
-      { type: 'AUTH_TOKEN', token: accessToken },
+      { type: 'AUTH_TOKEN', token: accessToken, userId, userEmail, userPhone, companyId },
       IFRAME_ORIGIN,
     );
   };

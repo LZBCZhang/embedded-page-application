@@ -18,15 +18,21 @@ export const updateUserPreferences = async (updatePreferencePayload : UpdateUser
 
 function normalizePurposesResponse(response: unknown): UserPreferencesResponse {
   const parsed = typeof response === 'string' ? JSON.parse(response) as unknown : response;
-  const rawList = Array.isArray(parsed)
-    ? parsed
-    : (parsed as { data?: unknown } | null)?.data;
 
-  if (!Array.isArray(rawList)) {
-    return [];
+  if (Array.isArray(parsed)) {
+    return {
+      meta: { correlationId: '' },
+      data: parsed.map((p) => normalizePurpose(p as Purpose)),
+    };
   }
 
-  return rawList.map((purpose) => normalizePurpose(purpose as Purpose));
+  const raw = parsed as { data?: unknown; meta?: { correlationId?: string } } | null;
+  const rawList = Array.isArray(raw?.data) ? (raw.data as Purpose[]) : [];
+
+  return {
+    meta: { correlationId: raw?.meta?.correlationId ?? '' },
+    data: rawList.map((p) => normalizePurpose(p as Purpose)),
+  };
 }
 
 function normalizePurpose(purpose: Purpose): Purpose {

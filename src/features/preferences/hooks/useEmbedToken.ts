@@ -6,20 +6,34 @@ const TOKEN_TIMEOUT_MS = 5000;
 
 const getAllowedOrigins = (): string[] => {
   const raw = import.meta.env.VITE_ALLOWED_PARENT_ORIGINS ?? '';
-  return raw
-    .split(',')
-    .map((o: string) => o.trim())
-    .filter(Boolean);
+  return raw.split(',').map((o: string) => o.trim()).filter(Boolean);
 };
+
+interface EmbedTokenMessage {
+  type?: string;
+  token?: string;
+  userId?: string;
+  userEmail?: string;
+  userPhone?: string;
+  companyId?: string;
+}
 
 interface UseEmbedTokenResult {
   token: string | null;
+  userId: string | null;
+  userEmail: string | null;
+  userPhone: string | null;
+  companyId: string | null;
   status: EmbedTokenStatus;
   reason: EmbedErrorReason | null;
 }
 
 export function useEmbedToken(): UseEmbedTokenResult {
   const [token, setToken] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [userPhone, setUserPhone] = useState<string | null>(null);
+  const [companyId, setCompanyId] = useState<string | null>(null);
   const [status, setStatus] = useState<EmbedTokenStatus>('waiting');
   const [reason, setReason] = useState<EmbedErrorReason | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -31,14 +45,16 @@ export function useEmbedToken(): UseEmbedTokenResult {
     const allowedOrigins = getAllowedOrigins();
 
     const handleMessage = (event: MessageEvent) => {
-      if (allowedOrigins.length > 0 && !allowedOrigins.includes(event.origin)) {
-        return; // silently ignore unknown origins
-      }
+      if (allowedOrigins.length > 0 && !allowedOrigins.includes(event.origin)) return;
 
-      const data = event.data as { type?: string; token?: string };
-      if (data?.type === 'AUTH_TOKEN' && typeof data.token === 'string') {
+      const data = event.data as EmbedTokenMessage;
+      if (data?.type === 'AUTH_TOKEN' && typeof data.token === 'string' && typeof data.userId === 'string') {
         if (timerRef.current) clearTimeout(timerRef.current);
         setToken(data.token);
+        setUserId(data.userId);
+        setUserEmail(data.userEmail ?? null);
+        setUserPhone(data.userPhone ?? null);
+        setCompanyId(data.companyId ?? null);
         setStatus('ready');
       }
     };
@@ -62,5 +78,5 @@ export function useEmbedToken(): UseEmbedTokenResult {
     };
   }, [emitLoadingStart, emitError]);
 
-  return { token, status, reason };
+  return { token, userId, userEmail, userPhone, companyId, status, reason };
 }

@@ -3,29 +3,34 @@ import { useTranslation } from 'react-i18next';
 import { buildCommunicationTypes } from '../api/preferences.api';
 import { useUpdatePreference } from './useUpdatePreference';
 import { useFetchPreferences } from './useFetchPreferences';
+import { useEmbedToken } from './useEmbedToken';
+import { usePostMessageEmitter } from '../../../hooks/usePostMessageEmitter';
+import type {
+  AdditionalInfo,
+  CommunicationType,
+  Purpose,
+  PurposeUpdate,
+  UpdateUserPreferencesRequest,
+} from '../types/preferences.types';
 
-import type {CommunicationType, Purpose, PurposeUpdate, UpdateUserPreferencesRequest} from '../types/preferences.types';
-import {useEmbedToken} from "./useEmbedToken.ts";
-import {usePostMessageEmitter} from "../../../hooks/usePostMessageEmitter.ts";
+const COLLECTION_POINT_ID = import.meta.env.VITE_COLLECTION_POINT_ID ?? '';
 
-const cloneToggleState = (purposes: Purpose[]) => {
+const cloneToggleState = (purposes: Purpose[]): Record<string, Record<string, boolean>> => {
   const state: Record<string, Record<string, boolean>> = {};
-
   for (const purpose of purposes) {
     state[purpose.id] = {};
-    for (const preference of [...purpose.communicationPreferences, ...purpose.otherPreferences]) {
-      for (const option of preference.options) {
+    for (const pref of [...purpose.communicationPreferences, ...purpose.otherPreferences]) {
+      for (const option of pref.options) {
         state[purpose.id][option.id] = option.consented;
       }
     }
   }
-
   return state;
 };
 
 export const usePreferences = () => {
   const { t } = useTranslation();
-  const { status, reason } = useEmbedToken();
+  const { status, reason, userId, userEmail, userPhone, companyId } = useEmbedToken();
   const { emitLoadingEnd, emitError, emitPreferencesSaved } = usePostMessageEmitter();
 
   const [toggleState, setToggleState] = useState<Record<string, Record<string, boolean>>>({});
@@ -33,113 +38,101 @@ export const usePreferences = () => {
   const [dirtyPurposeIds, setDirtyPurposeIds] = useState<Set<string>>(new Set());
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  const fetchUserPreference = useFetchPreferences();
+  const fetchQuery = useFetchPreferences(
+    { userId: userId ?? '', collectionPointId: COLLECTION_POINT_ID },
+    status === 'ready' && !!userId,
+  );
   const updateMutation = useUpdatePreference();
 
-  const purposes = fetchUserPreference.data?.data ?? [];
+  const purposes = fetchQuery.data?.data ?? [];
   const allCommPrefTypes = useMemo<CommunicationType[]>(() => buildCommunicationTypes(purposes), [purposes]);
-  const loadError = fetchUserPreference.isError;
-  const saveError = updateMutation.isError;
-  const loading = fetchUserPreference.isPending;
+  const loading = fetchQuery.isPending && status === 'ready';
+  const loadError = fetchQuery.isError;
   const saving = updateMutation.isPending;
+  const saveError = updateMutation.isError;
 
   useEffect(() => {
-    if (!purposes) {
-      return;
-    }
-
     const nextState = cloneToggleState(purposes);
     setToggleState(nextState);
     setInitialState(nextState);
     setDirtyPurposeIds(new Set());
-    emitLoadingEnd();
   }, [purposes]);
 
   useEffect(() => {
-    if (!saveSuccess) {
-      return;
-    }
+    if (fetchQuery.isSuccess) emitLoadingEnd();
+  }, [fetchQuery.isSuccess, emitLoadingEnd]);
 
+  useEffect(() => {
+    if (loadError) emitError('api_failure');
+  }, [loadError, emitError]);
+
+  useEffect(() => {
+    if (!saveSuccess) return;
     const timeout = window.setTimeout(() => setSaveSuccess(false), 3000);
     return () => window.clearTimeout(timeout);
   }, [saveSuccess]);
 
-  const isPreferenceConsented = useCallback((purposeId: string, preferenceId: string) => {
-    const purpose = purposes.find((item) => item.id === purposeId);
-    if (!purpose) {
-      return false;
-    }
+  const isPreferenceConsented = useCallback((purposeId: string, preferenceId: string): boolean => {
+    const purpose = purposes.find((p) => p.id === purposeId);
+    if (!purpose) return false;
 
-    const preference = [...purpose.communicationPreferences, ...purpose.otherPreferences].find((item) => item.id === preferenceId);
-    if (!preference) {
-      return false;
-    }
+    const pref = [...purpose.communicationPreferences, ...purpose.otherPreferences]
+      .find((p) => p.id === preferenceId);
+    if (!pref) return false;
 
-    return preference.options.some((option) => toggleState[purposeId]?.[option.id] ?? false);
+    return pref.options.some((opt) => toggleState[purposeId]?.[opt.id] ?? false);
   }, [purposes, toggleState]);
 
-  const markDirty = useCallback((purposeId: string, currentState: Record<string, boolean>, originalState: Record<string, boolean>) => {
-    const changed = Object.keys(currentState).some((optionId) => currentState[optionId] !== originalState[optionId]);
-    setDirtyPurposeIds((previous) => {
-      const next = new Set(previous);
-      if (changed) {
-        next.add(purposeId);
-      } else {
-        next.delete(purposeId);
-      }
+  const markDirty = useCallback((purposeId: string, current: Record<string, boolean>, original: Record<string, boolean>) => {
+    const changed = Object.keys(current).some((optId) => current[optId] !== original[optId]);
+    setDirtyPurposeIds((prev) => {
+      const next = new Set(prev);
+      if (changed) next.add(purposeId);
+      else next.delete(purposeId);
       return next;
     });
   }, []);
 
-  const togglePreference = useCallback((purposeId: string, preferenceId: string) => {
-    const purpose = purposes.find((item) => item.id === purposeId);
-    const currentPurposeState = toggleState[purposeId];
-    if (!purpose || !currentPurposeState) {
-      return;
-    }
-
-    const preference = [...purpose.communicationPreferences, ...purpose.otherPreferences].find((item) => item.id === preferenceId);
-    if (!preference) {
-      return;
-    }
-
-    const currentlyConsented = isPreferenceConsented(purposeId, preferenceId);
-    const nextState = { ...currentPurposeState };
-    for (const option of preference.options) {
-      nextState[option.id] = !currentlyConsented;
-    }
-
-    setToggleState((previous) => ({ ...previous, [purposeId]: nextState }));
-    markDirty(purposeId, nextState, initialState[purposeId] ?? {});
-  }, [initialState, isPreferenceConsented, markDirty, purposes, toggleState]);
-
-  const isAllUnsubscribed = useCallback((type: string) => {
-    if (purposes.length === 0) {
-      return false;
-    }
-
+  const isAllUnsubscribed = useCallback((type: string): boolean => {
+    if (purposes.length === 0) return false;
     return purposes.every((purpose) => {
-      const preference = purpose.communicationPreferences.find((item) => item.type === type);
-      return !preference || !isPreferenceConsented(purpose.id, preference.id);
+      const pref = purpose.communicationPreferences.find((p) => p.type === type);
+      return !pref || !isPreferenceConsented(purpose.id, pref.id);
     });
   }, [isPreferenceConsented, purposes]);
+
+  const togglePreference = useCallback((purposeId: string, preferenceId: string) => {
+    const purpose = purposes.find((p) => p.id === purposeId);
+    const currentPurposeState = toggleState[purposeId];
+    if (!purpose || !currentPurposeState) return;
+
+    const pref = [...purpose.communicationPreferences, ...purpose.otherPreferences]
+      .find((p) => p.id === preferenceId);
+    if (!pref) return;
+
+    const wasConsented = isPreferenceConsented(purposeId, preferenceId);
+    const nextState = { ...currentPurposeState };
+    for (const option of pref.options) {
+      nextState[option.id] = !wasConsented;
+    }
+
+    setToggleState((prev) => ({ ...prev, [purposeId]: nextState }));
+    markDirty(purposeId, nextState, initialState[purposeId] ?? {});
+  }, [initialState, isPreferenceConsented, markDirty, purposes, toggleState]);
 
   const toggleUnsubscribeAll = useCallback((type: string) => {
     const willConsent = isAllUnsubscribed(type);
 
-    setToggleState((previous) => {
-      const next = { ...previous };
+    setToggleState((prev) => {
+      const next = { ...prev };
       for (const purpose of purposes) {
-        const preference = purpose.communicationPreferences.find((item) => item.type === type);
-        if (!preference) {
-          continue;
-        }
+        const pref = purpose.communicationPreferences.find((p) => p.type === type);
+        if (!pref) continue;
 
         const purposeState = { ...(next[purpose.id] ?? {}) };
-        for (const option of preference.options) {
+        for (const option of pref.options) {
           purposeState[option.id] = willConsent;
         }
-
         next[purpose.id] = purposeState;
         markDirty(purpose.id, purposeState, initialState[purpose.id] ?? {});
       }
@@ -147,25 +140,15 @@ export const usePreferences = () => {
     });
   }, [initialState, isAllUnsubscribed, markDirty, purposes]);
 
-  const buildPreferencePayload = useCallback((): UpdateUserPreferencesRequest => {
-    return {
-        userId: '', // This should be populated with actual user ID
-        collectionPointId: '', // This should be populated with actual collection point ID
-        source: 'web', // This can be adjusted based on the actual source
-        purposes: buildPurposesUpdates(),
-        additionalInfo: {}
-    }
-  }, []);
-
   const buildPurposesUpdates = useCallback((): PurposeUpdate[] => {
     return purposes
       .filter((purpose) => dirtyPurposeIds.has(purpose.id))
       .map((purpose) => {
         const state = toggleState[purpose.id] ?? {};
         const communicationPreferences = purpose.communicationPreferences
-          .filter((preference) => preference.options.some((option) => state[option.id]))
-          .map((preference) => preference.type)
-          .filter((value, index, array) => array.indexOf(value) === index);
+          .filter((pref) => pref.options.some((opt) => state[opt.id]))
+          .map((pref) => pref.type)
+          .filter((type, idx, arr) => arr.indexOf(type) === idx);
 
         return {
           purposeId: purpose.id,
@@ -175,14 +158,30 @@ export const usePreferences = () => {
       });
   }, [dirtyPurposeIds, purposes, toggleState]);
 
+  const buildPreferencePayload = useCallback((): UpdateUserPreferencesRequest => {
+    const hasAdditionalInfo = !!(userEmail || userPhone || companyId);
+    const additionalInfo: AdditionalInfo | undefined = hasAdditionalInfo
+      ? { email: userEmail ?? '', mobile: userPhone ?? '', company: companyId ?? '' }
+      : undefined;
+
+    return {
+      userId: userId ?? '',
+      collectionPointId: COLLECTION_POINT_ID,
+      source: 'web',
+      purposes: buildPurposesUpdates(),
+      ...(additionalInfo && { additionalInfo }),
+    };
+  }, [buildPurposesUpdates, userId, userEmail, userPhone, companyId]);
+
   const savePreferences = useCallback(() => {
     setSaveSuccess(false);
     updateMutation.mutate(buildPreferencePayload(), {
       onSuccess: () => {
         setSaveSuccess(true);
+        emitPreferencesSaved();
       },
     });
-  }, [buildPreferencePayload, updateMutation]);
+  }, [buildPreferencePayload, emitPreferencesSaved, updateMutation]);
 
   return {
     purposes,
@@ -197,6 +196,8 @@ export const usePreferences = () => {
     isAllUnsubscribed,
     togglePreference,
     toggleUnsubscribeAll,
+    embedStatus: status,
+    embedReason: reason,
     loadErrorMessage: t('preferences.error.load'),
     saveErrorMessage: t('preferences.error.save'),
     successMessage: t('preferences.success.save'),
