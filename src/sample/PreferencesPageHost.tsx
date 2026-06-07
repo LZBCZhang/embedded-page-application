@@ -10,7 +10,7 @@
  *                     { type: 'CONSENT_ENGINE_PREFERENCES_SAVED' }
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import styles from './PreferencesPageHost.module.scss';
 
 const IFRAME_ORIGIN = import.meta.env.VITE_EMBED_ORIGIN ?? 'http://localhost:5173';
@@ -40,25 +40,31 @@ interface PreferencesPageHostProps {
   userPhone?: string;
   /** Company identifier (optional — stored in additionalInfo). */
   companyId?: string;
+  /** Override iframe src (used in dev/testing to pass token via URL params). */
+  preferencesUrl?: string;
 }
 
-export function PreferencesPageHost({ accessToken, userId, userEmail, userPhone, companyId }: PreferencesPageHostProps) {
+export function PreferencesPageHost({ accessToken, userId, userEmail, userPhone, companyId, preferencesUrl }: PreferencesPageHostProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [embedStatus, setEmbedStatus] = useState<EmbedStatus>('idle');
   const [embedError, setEmbedError] = useState<EmbedErrorPayload | null>(null);
+  // Track whether AUTH_TOKEN has been acknowledged so we stop resending.
+  const tokenSentRef = useRef(false);
 
-  const sendToken = () => {
+  const sendToken = useCallback(() => {
+    if (tokenSentRef.current) return;
     iframeRef.current?.contentWindow?.postMessage(
       { type: 'AUTH_TOKEN', token: accessToken, userId, userEmail, userPhone, companyId },
       IFRAME_ORIGIN,
     );
-  };
+  }, [accessToken, userId, userEmail, userPhone, companyId]);
 
   // Listen for status events from the embedded page.
-  // CONSENT_ENGINE_LOADING_START is the iframe's signal that its listener is
-  // mounted — respond immediately with the token to avoid the race condition
-  // where onLoad fires before the React app inside the iframe has initialised.
+  // The iframe pings CONSENT_ENGINE_LOADING_START every 300 ms until it gets
+  // AUTH_TOKEN back, so we reply on every ping — no race condition possible.
   useEffect(() => {
+    tokenSentRef.current = false;
+
     const handleMessage = (event: MessageEvent<EmbedMessage>) => {
       if (event.origin !== IFRAME_ORIGIN) return;
 
@@ -68,6 +74,7 @@ export function PreferencesPageHost({ accessToken, userId, userEmail, userPhone,
           sendToken();
           break;
         case 'CONSENT_ENGINE_LOADING_END':
+          tokenSentRef.current = true;
           setEmbedStatus('ready');
           break;
         case 'CONSENT_ENGINE_ERROR':
@@ -82,7 +89,7 @@ export function PreferencesPageHost({ accessToken, userId, userEmail, userPhone,
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [accessToken, userId, userEmail, userPhone, companyId]);
+  }, [sendToken]);
 
   return (
     <div className={styles.host}>
@@ -103,7 +110,7 @@ export function PreferencesPageHost({ accessToken, userId, userEmail, userPhone,
       <div className={styles.iframeWrapper} aria-busy={embedStatus === 'loading'}>
         <iframe
           ref={iframeRef}
-          src={PREFERENCES_URL}
+          src={preferencesUrl ?? PREFERENCES_URL}
           title="Communication Preferences"
           className={styles.iframe}
         />

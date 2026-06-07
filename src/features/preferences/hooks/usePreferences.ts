@@ -42,6 +42,7 @@ export const usePreferences = () => {
     mutate: fetchPreferences,
     data: fetchData,
     isPending: fetchPending,
+    isIdle: fetchIdle,
     isError: loadError,
     isSuccess: fetchSuccess,
   } = useFetchPreferences();
@@ -49,7 +50,10 @@ export const usePreferences = () => {
 
   const purposes = useMemo(() => fetchData?.data ?? [], [fetchData?.data]);
   const allCommPrefTypes = useMemo<CommunicationType[]>(() => buildCommunicationTypes(purposes), [purposes]);
-  const loading = fetchPending;
+  // Show spinner while the mutation is running, or when we're ready but haven't
+  // fired it yet (happens with the URL-params token path where status = 'ready'
+  // is set synchronously before the first useEffect tick).
+  const loading = fetchPending || (status === 'ready' && fetchIdle);
   const saving = updateMutation.isPending;
   const saveError = updateMutation.isError;
 
@@ -206,8 +210,8 @@ export const usePreferences = () => {
     toggleUnsubscribeAll,
     embedStatus: status,
     embedReason: reason,
-    loadErrorMessage: t('preferences.error.load'),
-    saveErrorMessage: t('preferences.error.save'),
-    successMessage: t('preferences.success.save'),
+    loadErrorMessage: t('preferences.loadError'),
+    saveErrorMessage: t('preferences.saveError'),
+    successMessage: t('preferences.saved'),
   };
 };
