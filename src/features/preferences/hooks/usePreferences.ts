@@ -47,7 +47,7 @@ export const usePreferences = () => {
   } = useFetchPreferences();
   const updateMutation = useUpdatePreference();
 
-  const purposes = fetchData?.data ?? [];
+  const purposes = useMemo(() => fetchData?.data ?? [], [fetchData?.data]);
   const allCommPrefTypes = useMemo<CommunicationType[]>(() => buildCommunicationTypes(purposes), [purposes]);
   const loading = fetchPending;
   const saving = updateMutation.isPending;
