@@ -1,17 +1,21 @@
 import { useTranslation } from 'react-i18next';
-import type { ConsentPreference } from '../types/preferences.types';
+import type { Purpose } from '../types/preferences.types';
 import { PreferenceItem } from './PreferenceItem';
 import styles from './PreferenceList.module.scss';
 
 interface PreferenceListProps {
-  preferences: ConsentPreference[];
-  onToggle: (id: string, enabled: boolean) => void;
+  purposes: Purpose[];
+  isPreferenceConsented: (purposeId: string, prefId: string) => boolean;
+  isAllUnsubscribed: (type: string) => boolean;
+  onToggle: (purposeId: string, prefId: string) => void;
   onSave: () => void;
   isSaving: boolean;
 }
 
 export function PreferenceList({
-  preferences,
+  purposes,
+  isPreferenceConsented,
+  isAllUnsubscribed,
   onToggle,
   onSave,
   isSaving,
@@ -21,9 +25,14 @@ export function PreferenceList({
   return (
     <section aria-label={t('preferences.title')}>
       <ul className={styles.list} role="list">
-        {preferences.map((pref) => (
-          <li key={pref.id} role="listitem">
-            <PreferenceItem preference={pref} onToggle={onToggle} />
+        {purposes.map((purpose) => (
+          <li key={purpose.id} role="listitem">
+            <PreferenceItem
+              purpose={purpose}
+              isPreferenceConsented={isPreferenceConsented}
+              isAllUnsubscribed={isAllUnsubscribed}
+              onToggle={onToggle}
+            />
           </li>
         ))}
       </ul>
