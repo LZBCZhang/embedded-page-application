@@ -2,7 +2,7 @@ using EmbeddedPageApplication.Server.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// MVC controllers (views are provided by the React SPA).
+// MVC controllers (the React SPA provides the views).
 builder.Services.AddControllersWithViews();
 
 // In-memory stub backend for consent / preferences data.
@@ -31,27 +31,20 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-app.UseHttpsRedirection();
+// Serve the built SPA from wwwroot in production. In development the
+// Microsoft.AspNetCore.SpaProxy package redirects to the Vite dev server
+// (launched via SpaProxyLaunchCommand) instead.
+app.UseDefaultFiles();
 app.UseStaticFiles();
+
+app.UseHttpsRedirection();
 app.UseRouting();
 app.UseCors();
 app.UseAuthorization();
 
 app.MapControllers();
 
-if (app.Environment.IsDevelopment())
-{
-    // Proxy every non-API request to the Vite dev server (`npm run dev`).
-    app.UseSpa(spa =>
-    {
-        spa.Options.SourcePath = "ClientApp";
-        spa.UseProxyToSpaDevelopmentServer("http://localhost:5173");
-    });
-}
-else
-{
-    // Serve the built SPA (copied into wwwroot on publish) for client-side routes.
-    app.MapFallbackToFile("index.html");
-}
+// Client-side routes (e.g. /preferences, /unsubscribe) fall back to the SPA shell.
+app.MapFallbackToFile("/index.html");
 
 app.Run();
