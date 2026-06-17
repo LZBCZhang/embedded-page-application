@@ -1,6 +1,16 @@
+# Node / React (ClientApp)
 node_modules
 dist
+coverage
 .env
 *.local
 .DS_Store
-coverage
+
+# .NET build output
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+
+# ASP.NET Core generated SPA assets (copied from ClientApp/dist on publish)
+wwwroot/

@@ -1,7 +1,5 @@
 import { http, HttpResponse } from 'msw';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5000';
-
 const mockPreferences = {
     "meta": {
         "status": "Succeeded",
@@ -733,11 +731,11 @@ const mockPreferences = {
 };
 
 export const handlers = [
-  http.post(`${API_BASE}/api/consent/user-consents`, () => {
+  http.post('/api/consent/user-consents', () => {
     return HttpResponse.json(mockPreferences, { status: 200 });
   }),
 
-  http.post(`${API_BASE}/api/consent/update-user-consents`, () => {
+  http.post('/api/consent/update-user-consents', () => {
     return new HttpResponse(null, { status: 200 });
   }),
 ];

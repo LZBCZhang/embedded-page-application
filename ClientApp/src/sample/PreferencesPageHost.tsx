@@ -13,7 +13,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import styles from './PreferencesPageHost.module.scss';
 
-const IFRAME_ORIGIN = import.meta.env.VITE_EMBED_ORIGIN ?? 'http://localhost:5173';
+const IFRAME_ORIGIN = import.meta.env.VITE_EMBED_ORIGIN ?? window.location.origin;
 const PREFERENCES_URL = `${IFRAME_ORIGIN}/preferences`;
 
 type EmbedStatus = 'idle' | 'loading' | 'ready' | 'error' | 'saved';
