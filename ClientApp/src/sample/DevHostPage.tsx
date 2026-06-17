@@ -1,6 +1,6 @@
 import { PreferencesPageHost } from './PreferencesPageHost';
 
-const IFRAME_ORIGIN = import.meta.env.VITE_EMBED_ORIGIN ?? 'http://localhost:5173';
+const IFRAME_ORIGIN = import.meta.env.VITE_EMBED_ORIGIN ?? window.location.origin;
 
 const DEV_PROPS = {
   accessToken: 'dev-token-abc123',

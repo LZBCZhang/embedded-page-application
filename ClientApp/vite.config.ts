@@ -7,12 +7,17 @@ export default defineConfig(({ mode }) => {
   // Using '' prefix so non-VITE_ vars (like DEV_API_TARGET) are also loaded
   const env = loadEnv(mode, process.cwd(), '');
 
-  // Proxy target: the real backend URL, configured via VITE_API_BASE_URL
+  // Proxy target: the ASP.NET Core server, configured via VITE_API_BASE_URL.
+  // Defaults to the server's HTTP dev URL (see ../Properties/launchSettings.json).
   const apiTarget = env.VITE_API_BASE_URL || 'http://localhost:5000';
 
   return {
     plugins: [react()],
     server: {
+      // Pinned so the ASP.NET Core SpaProxy (UseProxyToSpaDevelopmentServer)
+      // can reliably reach the Vite dev server.
+      port: 5173,
+      strictPort: true,
       proxy: {
         '/api': {
           target: apiTarget,
