@@ -1,0 +1,22 @@
+.page { max-width: 520px; margin: 4rem auto; padding: 2rem 1.25rem; text-align: center; }
+.title { font-size: 1.5rem; font-weight: 600; margin: 0 0 2rem; color: #1a1a1a; }
+.state { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; }
+.icon { font-size: 2.5rem; color: #2563eb; }
+.iconError { color: #c0392b; }
+.stateTitle { font-size: 1.125rem; font-weight: 600; margin: 0; color: #1a1a1a; }
+.stateMsg { font-size: 0.9375rem; color: #555; margin: 0; }
+.form { display: flex; flex-direction: column; align-items: center; gap: 1.25rem; }
+.description { font-size: 0.9375rem; color: #555; margin: 0; }
+.confirmBtn {
+  padding: 0.625rem 1.75rem; background: #2563eb; color: #fff;
+  border: none; border-radius: 4px; font-size: 0.9375rem; cursor: pointer;
+  &:hover:not(:disabled) { background: #1d4ed8; }
+  &:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+.retryBtn {
+  padding: 0.5rem 1.25rem; border: 1px solid #2563eb; border-radius: 4px;
+  background: transparent; color: #2563eb; font-size: 0.9375rem; cursor: pointer;
+  &:hover { background: #eff6ff; }
+  &:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+}
